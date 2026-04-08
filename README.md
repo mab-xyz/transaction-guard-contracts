@@ -42,7 +42,7 @@ We propose "Transaction Guard Contracts". This mechanism works in three steps:
 2. Encode these side effects as on-chain requirements in a one-shot guard contract.
 3. Wrap the user's intended transaction inside this contract, which executes atomically: either all expected side effects hold, or the entire transaction reverts.
 
-There is no off-chain trust assumption. Enforcement happens entirely on-chain, at execution time.
+There is no off-chain trust assumption. Guard verification happens entirely on-chain, at execution time.
 
 ### Flow
 
@@ -123,7 +123,7 @@ contract TransactionGuard {
 
 The contract is generic: the wallet populates the `expectations` array from the simulation diff. For the swap example, expectations would encode "user's ETH balance decreases by at most 1 ETH" and "user's USDC balance increases by at least 1,900 USDC" (with tolerance applied).
 
-If an attacker front-runs the swap and manipulates liquidity, the enforcement contract detects the deviation and reverts the entire transaction. The user loses nothing but gas.
+If an attacker front-runs the swap and manipulates liquidity, the guard contract detects the deviation and reverts the entire transaction. The user loses nothing but gas.
 
 ### Tolerance Model
 
@@ -140,7 +140,7 @@ The wallet's simulation engine proposes default tolerances based on the transact
 
 ### Gas Overhead
 
-The enforcement wrapper adds gas cost proportional to the number of side effects being verified. Approximate overhead per component:
+The guard wrapper adds gas cost proportional to the number of side effects being verified. Approximate overhead per component:
 
 | Component | Gas cost |
 |-----------|----------|
@@ -195,27 +195,27 @@ The mechanism operates under the following assumptions:
 
 ## Limitations
 
-Side-effect enforcement is not a universal defense. It has clear boundaries.
+Transaction guard contracts are not a universal defense. They have clear boundaries.
 
-**Phishing and social engineering.** If a user is tricked into signing a transaction that does what the attacker wants, enforcement will confirm the malicious outcome, not prevent it. The mechanism protects against divergence between simulation and execution, not against a user approving the wrong transaction.
+**Phishing and social engineering.** If a user is tricked into signing a transaction that does what the attacker wants, the guard will confirm the malicious outcome, not prevent it. The mechanism protects against divergence between simulation and execution, not against a user approving the wrong transaction.
 
 **Censorship.** If a validator refuses to include the wrapped transaction, the mechanism cannot help. The user's funds are safe (the transaction simply doesn't execute), but the desired action doesn't happen. Private mempools (Flashbots Protect, MEV Blocker) address censorship and are complementary.
 
-**Gas cost on revert.** When enforcement detects a violation, the transaction reverts but the user still pays gas for the failed execution. This is a cost of safety, not a vulnerability, but it means repeated attacks can drain gas from a user who retries without changing conditions.
+**Gas cost on revert.** When the guard detects a violation, the transaction reverts but the user still pays gas for the failed execution. This is a cost of safety, not a vulnerability, but it means repeated attacks can drain gas from a user who retries without changing conditions.
 
-**Multi-transaction workflows.** Some DeFi operations span multiple transactions (e.g., approve + swap, or deposit + stake). Enforcement operates per-transaction. Cross-transaction invariants require higher-level coordination that this mechanism does not provide.
+**Multi-transaction workflows.** Some DeFi operations span multiple transactions (e.g., approve + swap, or deposit + stake). Guards operate per-transaction. Cross-transaction invariants require higher-level coordination that this mechanism does not provide.
 
 ---
 
 ## Related Work
 
-**Flashbots Protect and MEV Blocker.** Private transaction submission services that hide pending transactions from the public mempool, reducing front-running exposure. Side-effect enforcement ensures correct outcomes regardless of mempool visibility. A user can submit a wrapped enforcement transaction through Flashbots Protect for layered protection.
+**Flashbots Protect and MEV Blocker.** Private transaction submission services that hide pending transactions from the public mempool, reducing front-running exposure. Transaction guards ensure correct outcomes regardless of mempool visibility. A user can submit a guarded transaction through Flashbots Protect for layered protection.
 
-**Intent-based protocols (UniswapX, CoW Protocol, 1inch Fusion).** Users express desired outcomes ("swap X for at least Y") and solvers compete to fill the order. This shares the goal of outcome enforcement but requires an off-chain solver network, introduces solver trust assumptions, and is limited to swap-like operations. Side-effect enforcement is protocol-agnostic and requires no off-chain infrastructure beyond standard RPC.
+**Intent-based protocols (UniswapX, CoW Protocol, 1inch Fusion).** Users express desired outcomes ("swap X for at least Y") and solvers compete to fill the order. This shares the goal of outcome guarantees but requires an off-chain solver network, introduces solver trust assumptions, and is limited to swap-like operations. Transaction guards are protocol-agnostic and require no off-chain infrastructure beyond standard RPC.
 
-**ERC-4337 (Account Abstraction).** Enables programmable transaction validation through smart contract wallets. Account abstraction provides the infrastructure for custom validation logic; side-effect enforcement provides a specific use case for that infrastructure. The two are architecturally complementary — an ERC-4337 wallet could embed enforcement logic in its validation step.
+**ERC-4337 (Account Abstraction).** Enables programmable transaction validation through smart contract wallets. Account abstraction provides the infrastructure for custom validation logic; transaction guards provide a specific use case for that infrastructure. The two are architecturally complementary — an ERC-4337 wallet could embed guard logic in its validation step.
 
-**Transaction simulation services (Tenderly, Blowfish, Blockaid).** Provide pre-signing simulation and risk assessment. These are the "input" to the enforcement mechanism: they produce the expected side effects that the enforcement contract then verifies on-chain. Current simulation services show users what should happen; this proposal ensures it does happen.
+**Transaction simulation services (Tenderly, Blowfish, Blockaid).** Provide pre-signing simulation and risk assessment. These are the "input" to the guard mechanism: they produce the expected side effects that the guard contract then verifies on-chain. Current simulation services show users what should happen; this proposal ensures it does happen.
 
 ---
 
