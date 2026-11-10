@@ -217,6 +217,12 @@ Transaction guard contracts are not a universal defense. They have clear boundar
 
 **Transaction simulation services (Tenderly, Blowfish, Blockaid).** Provide pre-signing simulation and risk assessment. These are the "input" to the guard mechanism: they produce the expected side effects that the guard contract then verifies on-chain. Current simulation services show users what should happen; this proposal ensures it does happen.
 
+**MetaMask Transaction Shield.** A [paid subscription](https://metamask.com/en-GB/transaction-shield) where MetaMask reimburses losses (up to $10,000/month) on in-app transactions its own simulation judged safe. It addresses the same simulation-execution gap, but ex post and off-chain: the bad outcome executes, then the user files a claim, trusts MetaMask's coverage terms, and is excluded for protocol exploits and economic losses. Transaction guards prevent the loss instead of compensating it, with no insurer in the trust base. The two compose: an insurer covering guarded transactions bears much less risk.
+
+**Assertions (Blossom Labs).** [Assertions](https://assertions.eth.limo/) lets users attach on-chain conditions (owner, code hash, Safe threshold, balances) to a DAO proposal, Safe batch or EIP-7702 action; if any assertion fails, the whole transaction reverts. This is the closest existing realization of the guard idea. The difference is where the conditions come from: Assertions are hand-written by the author, whereas transaction guards are generated automatically from the wallet's simulation diff, targeting every user transaction rather than high-value, expert-curated batches.
+
+**EIP-7906 (Transaction Assertions via State Diff Opcode).** A [draft core EIP](https://eips.ethereum.org/EIPS/eip-7906) adding a `TXTRACE` opcode and an `ASSERT` frame that reads the transaction's full state diff at the end of execution and reverts the execution body if the check fails. It is the protocol-level version of this proposal: it sees all state changes natively, instead of only the balances a guard contract explicitly snapshots, and needs no wrapper call. It requires a hard fork and frame transactions (EIP-8141); transaction guards work on today's EVM. Its stated limits (pre-existing allowances, later effects such as queued withdrawals, under-specified assertions misleading users) apply to guards as well. Guard generation from simulation is a natural front end for EIP-7906 assertions once available.
+
 ---
 
 ## About mab.xyz
