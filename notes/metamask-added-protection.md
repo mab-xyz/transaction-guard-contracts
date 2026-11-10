@@ -57,6 +57,15 @@ This is the same design as the `TransactionGuard` in our README (per-asset `minD
 - **Fail-safe underflow.** If the balance fell below the allowed decrease before execution, `before - amount` underflows and reverts.
 - **Centralized expected outcome.** The simulation, and therefore the expected outcome encoded in the caveats, comes from a MetaMask server.
 
+## Which accounts
+
+Not any EIP-7702 account: only MetaMask's own DeleGator implementation.
+
+- On-chain, `DelegationManager` calls `IDeleGatorCore(delegator).executeFromExecutor(...)` and, since a delegated EOA has code, validates the delegation signature with ERC-1271 `isValidSignature`. The account must implement `IDeleGatorCore` and accept calls from the DelegationManager.
+- In the extension ([delegation.ts](https://github.com/MetaMask/metamask-extension/blob/25604583aa6bcaf09f79e7d187bcf32cd9906650/app/scripts/lib/transaction/delegation.ts)), a plain EOA (no 7702 delegation) gets a 7702 authorization to MetaMask's upgrade contract added to the same transaction: enabling Added Protection upgrades the EOA to a MetaMask smart account. An account already delegated to a MetaMask contract listed in the feature flags (`isAccountUpgradedToEIP7702` in [MetaMask/core](https://github.com/MetaMask/core/blob/main/packages/transaction-controller/src/utils/eip7702.ts)) is used as is.
+- An account delegated to a third-party 7702 implementation (e.g. another wallet's) gets no authorization from the enforced-simulations path, so `executeFromExecutor` is not available; gas estimation fails and `applyTransactionContainers` throws before approval. Inferred from code, not tested.
+- Only dapp-originated transactions (`origin` set and not MetaMask itself) are eligible.
+
 ## Safe
 
 The enforcers work with any `IDeleGatorCore`. MetaMask's [DeleGatorModule](https://github.com/MetaMask/delegator-safe-module/blob/2428cdb727b4fd6476b86f001963284e5f444121/src/DeleGatorModule.sol) gives a Safe `executeFromExecutor` (Call only, default exec mode) and validates delegations through the Safe's ERC-1271 `isValidSignature`, so Safe threshold applies. A Safe with the module enabled can wrap its transactions with the same balance-change caveats; no Safe front end generates them from a simulation. The module grants the DelegationManager execution rights on the Safe, bounded by the caveats of each signed delegation. Added Protection itself only targets MetaMask smart accounts in the extension.
